@@ -1,0 +1,76 @@
+name: Check JS Changes and Version Increments
+
+on:
+  pull_request:
+    paths:
+      - '**.js'
+      - '**.css'
+      - 'version.php'
+
+jobs:
+  check-assets-changes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Get list of changed files
+        id: get_changed_files
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          files_changed=$(git diff --name-only origin/${{ github.base_ref }} ${{ github.sha }})
+          echo "Files changed: $files_changed"
+          echo "files_changed<<EOF" >> $GITHUB_ENV
+          echo "$files_changed" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Check if admin files were modified
+        id: check_admin
+        run: |
+          admin_changes=$(echo "$files_changed" | grep -E '^(admin/.*\.js|admin/.*\.css)$' | wc -l)
+          echo "admin_changes=$admin_changes" >> $GITHUB_ENV
+          echo "Admin changes: $admin_changes"
+
+      - name: Check if user files were modified
+        id: check_user
+        run: |
+          user_changes=$(echo "$files_changed" | grep -E '^(user/.*\.js|user/.*\.css)$' | wc -l)
+          echo "user_changes=$user_changes" >> $GITHUB_ENV
+          echo "User changes: $user_changes"
+
+      - name: Check if teacher files were modified
+        id: check_teacher
+        run: |
+          teacher_changes=$(echo "$files_changed" | grep -E '^(teacher/.*\.js|teacher/.*\.css)$' | wc -l)
+          echo "teacher_changes=$teacher_changes" >> $GITHUB_ENV
+          echo "Teacher changes: $teacher_changes"
+
+      - name: Get previous version.php
+        id: get_previous_version
+        run: |
+          git show origin/${{ github.base_ref }}:version.php > previous_version.php
+
+      - name: Validate version increment
+        if: env.admin_changes != '0' || env.user_changes != '0' || env.teacher_changes != '0'
+        run: |
+          check_version_increment() {
+            local version_key=$1
+            local changes=$2
+            if [ "$changes" -ne "0" ]; then
+              local previous_version=$(grep -E "\['$version_key'\] = '[0-9]+\.[0-9]+\.[0-9]+'" previous_version.php)
+              local current_version=$(grep -E "\['$version_key'\] = '[0-9]+\.[0-9]+\.[0-9]+'" version.php)
+
+              echo "Checking $version_key: Previous version: $previous_version, Current version: $current_version"
+
+              if [ "$previous_version" == "$current_version" ]; then
+                echo "Error: $version_key in version.php is not incremented."
+                exit 1
+              fi
+            fi
+          }
+
+          check_version_increment "admin.version" "$admin_changes"
+          check_version_increment "user.version" "$user_changes"
+          check_version_increment "teacher.version" "$teacher_changes"
