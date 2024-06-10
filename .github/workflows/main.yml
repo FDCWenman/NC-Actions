@@ -43,7 +43,7 @@ jobs:
       - name: Check if teacher files were modified
         id: check_teacher
         run: |
-          teacher_changes=$(echo "$files_changed" | grep -E '^(teacher/.*\.js|teacher/.*\.css)$' | wc -l)
+          teacher_changes=$(echo "$files_changed" | grep -E '^(teacher/.*\.js|teacher/.*\.css|teacher/webroot/files/.*)$' | wc -l)
           echo "teacher_changes=$teacher_changes" >> $GITHUB_ENV
           echo "Teacher changes: $teacher_changes"
 
