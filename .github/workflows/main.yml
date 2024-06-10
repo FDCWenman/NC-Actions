@@ -3,8 +3,7 @@ name: Check JS Changes and Version Increments
 on:
   pull_request:
     paths:
-      - '**.js'
-      - '**.css'
+      - '**.*'
       - 'version.php'
 
 jobs:
